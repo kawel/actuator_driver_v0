@@ -35,6 +35,7 @@ NVIC.NonMaskableInt_IRQn=true\:0\:0\:false\:false\:true\:false\:false
 NVIC.PendSV_IRQn=true\:0\:0\:false\:false\:true\:false\:false
 NVIC.SVC_IRQn=true\:0\:0\:false\:false\:true\:false\:false
 NVIC.SysTick_IRQn=true\:0\:0\:false\:false\:true\:false\:true
+NVIC.USART1_IRQn=true\:0\:0\:false\:false\:true\:true\:true
 PA10.GPIOParameters=GPIO_Label
 PA10.GPIO_Label=ACT1_EN
 PA10.Locked=true

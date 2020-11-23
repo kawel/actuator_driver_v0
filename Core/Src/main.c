@@ -40,7 +40,7 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define HAL_UART_Transmit_new_line() HAL_UART_Transmit(&huart1,(uint8_t*) "\r\n", strlen("\r\n"), HAL_MAX_DELAY)
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -97,7 +97,21 @@ int main(void)
   MX_TIM1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-
+  HAL_UART_Transmit(&huart1,(uint8_t*) info_device_name, strlen(info_device_name), HAL_MAX_DELAY);
+  HAL_UART_Transmit_new_line();
+  HAL_UART_Transmit(&huart1,(uint8_t*) info_fw_verison, strlen(info_fw_verison), HAL_MAX_DELAY);
+  HAL_UART_Transmit_new_line();
+  HAL_UART_Transmit(&huart1,(uint8_t*) info_hw_version, strlen(info_hw_version), HAL_MAX_DELAY);
+  HAL_UART_Transmit_new_line();
+  HAL_UART_Transmit(&huart1,(uint8_t*) info_build_date, strlen(info_build_date), HAL_MAX_DELAY);
+  HAL_UART_Transmit_new_line();
+//  HAL_UART_Transmit(&huart1,(uint8_t*) info_build_time, strlen(info_build_time), HAL_MAX_DELAY);
+//  HAL_UART_Transmit_new_line();
+  HAL_UART_Transmit(&huart1,(uint8_t*) info_company, strlen(info_company), HAL_MAX_DELAY);
+  HAL_UART_Transmit_new_line();
+  HAL_UART_Transmit(&huart1,(uint8_t*) "SN: ", strlen("SN: "), HAL_MAX_DELAY);
+  HAL_UART_Transmit(&huart1,(uint8_t*) info_serial_number, strlen(info_serial_number), HAL_MAX_DELAY);
+  HAL_UART_Transmit_new_line();
   /* USER CODE END 2 */
 
   /* Infinite loop */
