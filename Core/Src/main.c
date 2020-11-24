@@ -19,7 +19,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -27,6 +26,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdint.h>
 #include <string.h>
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,23 +36,34 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define RX_BUFFER_SIZE 3
+#define SOF  0xAA
+#define ACT1_EN_CMD (rx_buffer[1] & 0xF0)
+#define ACT1_DIR_CMD (rx_buffer[1] & 0x0F)
+#define ACT2_EN_CMD (rx_buffer[2] & 0xF0)
+#define ACT2_DIR_CMD (rx_buffer[2] & 0x0F)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 #define HAL_UART_Transmit_new_line() HAL_UART_Transmit(&huart1,(uint8_t*) "\r\n", strlen("\r\n"), HAL_MAX_DELAY)
+#define HAL_UART_Transmit_Error_IT(err) HAL_UART_Transmit_IT(&huart1, (uint8_t*) (err), strlen((err)))
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+
 const char * info_device_name 	= "Platform Levelling Actuator Driver";
-const char * info_fw_verison 	= "FW: 0.0.0";
+const char * info_fw_verison 	= "FW: 0.1.0";
 const char * info_hw_version	= "HW: v0.0";
 const char * info_build_date 	= __DATE__;
 const char * info_build_time 	= __TIME__;
 const char * info_company 		= "kelectronics.pl";
 const char * info_serial_number = "001";
+
+static uint8_t rx_buffer[RX_BUFFER_SIZE] = {0};
+static volatile bool new_frame = false;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -94,7 +105,6 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_TIM1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_UART_Transmit(&huart1,(uint8_t*) info_device_name, strlen(info_device_name), HAL_MAX_DELAY);
@@ -112,15 +122,70 @@ int main(void)
   HAL_UART_Transmit(&huart1,(uint8_t*) "SN: ", strlen("SN: "), HAL_MAX_DELAY);
   HAL_UART_Transmit(&huart1,(uint8_t*) info_serial_number, strlen(info_serial_number), HAL_MAX_DELAY);
   HAL_UART_Transmit_new_line();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  HAL_UART_Receive_IT(&huart1, rx_buffer, 3);
+
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+	  if(new_frame)
+	  {
+		  if(rx_buffer[0] == SOF)
+		  {
+			  if((rx_buffer[1] & 0xF0) <= 0x10)
+			  {
+				  if((rx_buffer[1] & 0x0F) <= 0x01)
+				  {
+					  if((rx_buffer[2] & 0xF0) <= 0x10)
+					  {
+						  if((rx_buffer[2] & 0x0F) <= 0x01)
+						  {
+							  HAL_GPIO_WritePin(ACT1_EN_GPIO_Port, ACT1_EN_Pin, ACT1_EN_CMD ? GPIO_PIN_SET: GPIO_PIN_RESET);
+							  HAL_GPIO_WritePin(ACT1_DIR_GPIO_Port, ACT1_DIR_Pin, ACT1_DIR_CMD ? GPIO_PIN_SET: GPIO_PIN_RESET);
+							  HAL_GPIO_WritePin(ACT2_EN_GPIO_Port, ACT2_EN_Pin, ACT2_EN_CMD ? GPIO_PIN_SET: GPIO_PIN_RESET);
+							  HAL_GPIO_WritePin(ACT2_DIR_GPIO_Port, ACT2_DIR_Pin, ACT2_DIR_CMD ? GPIO_PIN_SET: GPIO_PIN_RESET);
+						  }
+						  else
+						  {
+							  HAL_UART_Transmit_Error_IT("Error value in position E - 0xAAxxxE should be 0 or 1\r\n");
+						  }
+					  }
+					  else
+					  {
+						  HAL_UART_Transmit_Error_IT("Error value in position E - 0xAAxxEx should be 0 or 1\r\n");
+					  }
+				  }
+				  else
+				  {
+					  HAL_UART_Transmit_Error_IT("Error value in position E - 0xAAxExx should be 0 or 1\r\n");
+				  }
+			  }
+			  else
+			  {
+				  HAL_UART_Transmit_Error_IT("Error value in position E - 0xAAExxx should be 0 or 1\r\n");
+			  }
+		  }
+		  else
+		  {
+			  HAL_UART_Transmit_Error_IT("Error - wrong start of frame - should be 0xAA\r\n");
+		  }
+
+		  memset(rx_buffer, 0x00, RX_BUFFER_SIZE);
+		  new_frame = false;
+		  HAL_UART_Receive_IT(&huart1, rx_buffer, 3);
+	  }
+	  else
+	  {
+
+	  }
+
   }
   /* USER CODE END 3 */
 }
@@ -168,6 +233,35 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	new_frame = true;
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+//	new_frame = true;
+	asm("nop");
+}
+
+void HAL_UART_AbortReceiveCpltCallback(UART_HandleTypeDef *huart)
+{
+	asm("nop");
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+	asm("nop");
+}
+void HAL_UART_AbortCpltCallback(UART_HandleTypeDef *huart)
+{
+	asm("nop");
+}
+void HAL_UART_AbortTransmitCpltCallback(UART_HandleTypeDef *huart)
+{
+	asm("nop");
+}
 
 /* USER CODE END 4 */
 
